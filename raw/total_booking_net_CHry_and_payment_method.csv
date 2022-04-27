@@ -1,0 +1,12 @@
+country_name,payment_method,total_booking_net_CHF
+Austria,credit_card,10323.398475833194
+Austria,paypal,15027.418461666344
+Austria,klarna,346.09367833333323
+Germany,paypal,739586.434666419
+Germany,sofort,23460.77375776516
+Germany,credit_card,139855.23743953666
+Germany,klarna,45471.83945234648
+Switzerland,paypal,188059.93500464887
+Switzerland,postfinance_ef,10675.422469823552
+Switzerland,credit_card,315228.78365827334
+Switzerland,postfinance_card,35787.61374187616

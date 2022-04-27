@@ -1,0 +1,4 @@
+transaction_id,zuid,payment_method,sku,type_of_transaction,country_name,new_booking_net_CHF,renewal_booking_net_CHF,new_booking_net_EUR,renewal_booking_net_EUR,transaction_date,term_start,term_end
+27333595,4712316,apple,ch.zattoo.ios.ch.auto.10,renewal,Switzerland,0,9.470752089136491,0,8.664122302750426,2021-03-01 01:00:29.000000,2021-03-01 01:36:23.000000,2021-03-29 00:36:23.000000
+24778461_21151,27554284,paypal,zattoo_web_hiq_german_12mo,refund,Germany,0,-65.12591637931035,0,-59.974137931034484,2021-03-01 08:43:11.000000,2020-12-30 15:14:49.000000,2021-02-28 18:14:53.000000
+27335010,20917675,paypal,zattoo_web_hiq_german_12mo,renewal,Germany,0,91.84795714285714,0,84.02521008403362,2021-03-01 04:05:44.000000,2021-03-02 19:13:56.000000,2022-03-02 19:13:56.000000

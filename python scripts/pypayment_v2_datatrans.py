@@ -292,7 +292,7 @@ reporting_df["revenue_month_date"] = pd.to_datetime(
 ).dt.date
 
 ## Standardizing the report so it's in line with Amazon, Google and Apple
-reporting_df[['domestic_abroad', 'subscription_status']] = np.nan
+reporting_df['domestic_abroad'] = np.nan
 
 reporting_df[['charge_chf', 'charge_eur', 'store_fees_percentage', 'payout_chf', 'fee_eur', 'fee_chf',
               'payout_eur']] = 0

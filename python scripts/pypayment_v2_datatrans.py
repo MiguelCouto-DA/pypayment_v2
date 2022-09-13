@@ -222,32 +222,6 @@ reporting_df_nocalcs = df[~df["type_of_transaction"].isin(type_trans_lst)].copy(
 for date in parse_dates:
     reporting_df_nocalcs[date] = pd.to_datetime(reporting_df_nocalcs[date]).dt.tz_convert(None)
 
-## Adding logic for subscription_status and type_of_transaction
-reporting_df['subscription_status'] = ['trial' if v == 'free_trial' else 'full discount' if v == 'full_discount' else 'paid' if v == 'refund' else 'paid' for v in reporting_df['type_of_transaction']]
-
-reporting_df['type_of_transaction'] = ['charge' if v == 'renewal' else 'charge' if v == 'new_sale' else 'charge' if v == 'full_discount' else 'charge' if v == 'free_trial' else 'refund' for v in reporting_df['type_of_transaction']]
-
-## Set active_sub_month_end = 0 by default
-reporting_df['active_sub_month_end'] = 0
-reporting_df['active_sub_month_end'][
-    (reporting_df['term_end'] > (reporting_df['revenue_month_date'] + pd.offsets.MonthBegin(1)))] = 1
-reporting_df["active_sub_month_end"][reporting_df["subscription_status"] != "paid"] = 0
-
-## Mark all refund transactions as 'active_sub_month_end'] * -1
-reporting_df["active_sub_month_end"][reporting_df["type_of_transaction"] == "refund"] = reporting_df[
-                                                                                            'active_sub_month_end'] * -1
-
-reporting_df.reset_index(drop=True, inplace=True)
-
-## active_sub_content follows the same logic as active_sub_month_end except it doesn't count the last month
-reporting_df["active_sub_content"] = reporting_df.active_sub_month_end
-
-reporting_df["active_sub_content"][(reporting_df["revenue_month_number"] > reporting_df['product_length_months'])] = 0
-
-## Total_days of product_term_length per transaction_id
-reporting_df["total_days"] = reporting_df.groupby(["transaction_id", 'type_of_transaction'])[
-    "product_term_length"].transform("sum")
-
 ## Extract list of transaction ids whose subscription float between one month and the other, and are 1, 3 or 7 days (== product_length < 31)
 trx_lst_more_1month_subs = reporting_df['transaction_id'][
     (reporting_df["revenue_month_number"] > 1) & (reporting_df.sku.str.contains('day'))]
@@ -290,6 +264,32 @@ reporting_df = reporting_df.append(reporting_df_nocalcs).reset_index(drop=True)
 reporting_df["revenue_month_date"] = pd.to_datetime(
     reporting_df["revenue_month_date"]
 ).dt.date
+
+## Adding logic for subscription_status and type_of_transaction
+reporting_df['subscription_status'] = ['trial' if v == 'free_trial' else 'full discount' if v == 'full_discount' else 'paid' if v == 'refund' else 'paid' for v in reporting_df['type_of_transaction']]
+
+reporting_df['type_of_transaction'] = ['charge' if v == 'renewal' else 'charge' if v == 'new_sale' else 'charge' if v == 'full_discount' else 'charge' if v == 'free_trial' else 'refund' for v in reporting_df['type_of_transaction']]
+
+## Set active_sub_month_end = 0 by default
+reporting_df['active_sub_month_end'] = 0
+reporting_df['active_sub_month_end'][
+    (reporting_df['term_end'] > (reporting_df['revenue_month_date'] + pd.offsets.MonthBegin(1)))] = 1
+reporting_df["active_sub_month_end"][reporting_df["subscription_status"] != "paid"] = 0
+
+## Mark all refund transactions as 'active_sub_month_end'] * -1
+reporting_df["active_sub_month_end"][reporting_df["type_of_transaction"] == "refund"] = reporting_df[
+                                                                                            'active_sub_month_end'] * -1
+
+reporting_df.reset_index(drop=True, inplace=True)
+
+## active_sub_content follows the same logic as active_sub_month_end except it doesn't count the last month
+reporting_df["active_sub_content"] = reporting_df.active_sub_month_end
+
+reporting_df["active_sub_content"][(reporting_df["revenue_month_number"] > reporting_df['product_length_months'])] = 0
+
+## Total_days of product_term_length per transaction_id
+reporting_df["total_days"] = reporting_df.groupby(["transaction_id", 'type_of_transaction'])[
+    "product_term_length"].transform("sum")
 
 ## Standardizing the report so it's in line with Amazon, Google and Apple
 reporting_df['domestic_abroad'] = np.nan

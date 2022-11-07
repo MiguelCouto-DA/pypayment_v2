@@ -20,7 +20,7 @@ project_id = "zattoo-dataeng"
 client = bigquery.Client(credentials=credentials, project=project_id)
 
 ## Prepare dataframe
-df = pd.read_csv('/Users/miguelcouto/PycharmProjects/pypayment_v2/raw/google/2022-07_google.csv')
+df = pd.read_csv('/Users/miguelcouto/PycharmProjects/pypayment_v2/raw/google/2022-08_google.csv')
 
 ## Renaming and reordering the dataframe so it keeps consistency with the reports from the other app shops
 reporting_df = df[
@@ -397,6 +397,7 @@ reporting_df = reporting_df[reporting_df['product_term_length'] > 0]
 
 ## Set active_sub_month_end = 0 by default
 reporting_df['active_sub_month_end'] = 0
+# reporting_df['revenue_month_date'] = pd.to_datetime(reporting_df['revenue_month_date']).dt.date
 reporting_df['active_sub_month_end'][
     (reporting_df['term_end'] > (reporting_df['revenue_month_date'] + pd.offsets.MonthBegin(1)))] = 1
 
@@ -606,6 +607,9 @@ bq_schema = [
 reporting_df.rename({'buyer_currency': 'currency',
                     'description': 'transaction_id'},
                     axis=1, inplace=True)
+
+reporting_df['type_of_transaction'] = reporting_df['type_of_transaction'].replace(
+    {'Charge': 'charge', 'Charge refund': 'refund'})
 
 ## Export to BQ table
 pandas_gbq.to_gbq(

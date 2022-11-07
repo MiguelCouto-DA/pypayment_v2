@@ -66,14 +66,12 @@ where true
   and mt.app_shop_id = 'datatrans'
   and mt.transaction_date >= '2022-03-01 00:00:00'
   and mt.transaction_date <= '2022-03-31 23:59:59'
--- Due to discrepancies, we will NOT be including refunds for now in datatrans
- -- and mt.type_of_transaction != 'refund'
            """
 
 ## Prepare dataframe
 df = pandas_gbq.read_gbq(sql_calcs, project_id=project_id, progress_bar_type=None)
 
-## List of transaction types (new and renewal) to be included in the dataframe (as mentioned before refunds will NOT be included in datatrans for now)
+## List of transaction types (new, renewal and refund) to be included in the dataframe
 type_trans_lst = ["new_sale",
                   "renewal",
                   "refund"
@@ -424,9 +422,9 @@ bq_schema = [
 ## Export to BQ table
 pandas_gbq.to_gbq(
     dataframe=reporting_df,
-    destination_table=f"finance.subs_reporting_datatrans",
+    destination_table=f"finance.subs_reporting_datatrans_py",
     project_id="zattoo-dataeng",
-    if_exists="append",
+    if_exists="replace",
     progress_bar=None,
     table_schema=bq_schema,
 )

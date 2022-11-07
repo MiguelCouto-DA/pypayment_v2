@@ -478,7 +478,7 @@ reporting_df['store_fees_chf'] = 0
 reporting_df['subscription_status'] = 'paid'
 
 ## type of transaction based on is_refund
-reporting_df['type_of_transaction'] = ['refund' if x == 1 else 'sale' for x in reporting_df["is_refund"]]
+reporting_df['type_of_transaction'] = ['refund' if x == 1 else 'charge' for x in reporting_df["is_refund"]]
 
 ## Final clean up
 reporting_df['total_revenue_net_eur'].replace(np.nan, 0, inplace=True)

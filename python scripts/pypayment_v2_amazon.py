@@ -21,7 +21,7 @@ client = bigquery.Client(credentials=credentials, project=project_id)
 
 ## Prepare dataframe
 ## Amazon data is very poor and will require a lot of transformations and the code will include Finance logic
-df = pd.read_csv('/Users/miguelcouto/PycharmProjects/pypayment_v2/raw/amazon/2022-03_amazon.csv')
+df = pd.read_csv('/Users/miguelcouto/PycharmProjects/pypayment_v2/raw/amazon/2022-07_amazon.csv')
 
 ## I've manually renamed zattoo_amazon_firetv_hiq_german_1mo_90day_freetrial to zattoo_amazon_firetv_hiq_german_90days_freetrial. The objective is to be able to
 ## join with b2c_middleware_import.payment_amazontransaction_view and enrich the original Amazon sales report
@@ -33,7 +33,8 @@ df['Vendor SKU'].replace(
 reporting_df = df[
     ['Transaction ID', 'Transaction Time', 'Transaction Type', 'Country/Region Code', 'Vendor SKU',
      'In-App Subscription Term',
-     'In-App Subscription Status (Trial / Paid)', 'Sales Price (Marketplace Currency)',
+     # 'In-App Subscription Status',
+     'Sales Price (Marketplace Currency)',
      'Estimated Earnings (Marketplace Currency)',
      'Units']]
 
@@ -43,7 +44,7 @@ reporting_df.rename({'Transaction ID': 'transaction_id',
                      'Country/Region Code': 'country_code',
                      'Vendor SKU': 'vendor_sku',
                      'In-App Subscription Term': 'subscription_term',
-                     'In-App Subscription Status (Trial / Paid)': 'subscription_status',
+                     # 'In-App Subscription Status': 'subscription_status',
                      'Sales Price (Marketplace Currency)': 'sales_price',
                      'Estimated Earnings (Marketplace Currency)': 'earnings',
                      'Units': 'units',
@@ -63,6 +64,13 @@ reporting_df['country_name'] = reporting_df['country_code'].replace(
 
 reporting_df['country_name'].replace(
     'Switzerland', 'Germany', inplace=True)
+
+reporting_df['country_code'] = reporting_df['country_name'].replace(
+    'DE', 'Germany').replace('CH', 'Switzerland').replace('AT', 'Austria')
+
+reporting_df['country_code'] = pd.np.where(
+    reporting_df['country_name'] == 'Germany', 'DE', pd.np.where(reporting_df[
+                                                                        'country_name'] == "Switzerland", "CH", "AT"))
 
 ## Converting date columns to datetime
 reporting_df['transaction_date'] = pd.to_datetime(reporting_df['transaction_time'].str[:-4], format='%Y-%m-%d %H:%M:%S')
@@ -140,7 +148,13 @@ reporting_df['avg_price_sales_per_sub'] = reporting_df['sales_price'] / reportin
 
 ## Replacing product_length_months string with integers
 reporting_df['product_length_months'] = reporting_df['term'].replace(
-    {'1 Month': 1, '2 Months': 2, '3 Months': 3, '6 Months': 6, '12 Months': 12, '1 Year': 12})
+    {'1 Day': 1,
+     '1 Month': 1,
+     '2 Months': 2,
+     '3 Months': 3,
+     '6 Months': 6,
+     '12 Months': 12,
+     '1 Year': 12})
 
 ## To get more VAT data a temp_vat_df is created to later be joined with b2c_middleware_import.payment_exchangerate and enrich the dataframe
 temp_vat_df = reporting_df[['transaction_id', 'country_code', 'sales_price', 'transaction_date', 'currency']]
@@ -285,6 +299,15 @@ reporting_df['product_length'] = pd.np.where(
                                                                                             31,
                                                                                             reporting_df[
                                                                                                 'product_length']))))))
+
+## There are many of products being sold though they shouldn't and no one knows why. The following is an example.
+reporting_df['product_class'] = pd.np.where(
+    reporting_df['vendor_sku'] == 'zattoo_amazon_firetv_mobile_hiq_german_3mo_period', "premium", reporting_df['product_class'])
+
+## Product lengths months also need to be manually treated as there's not enough detailed data in the reports. Especially for cases such as the previous.
+reporting_df['product_length_months'] = pd.np.where(
+    reporting_df['product_length'] == 31.0, 1, pd.np.where(reporting_df['product_length'] == 90.0, 3,
+                                                                    pd.np.where(reporting_df['product_length'] == 365.0, 12, reporting_df['product_length_months'])))
 
 ## Adding artificially created term_end_date based on initial transaction_date
 reporting_df['term_end'] = reporting_df['transaction_date'] + reporting_df['product_length'].astype('timedelta64[D]')

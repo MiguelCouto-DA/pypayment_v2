@@ -143,11 +143,11 @@ reporting_df["product_term_length"][reporting_df["term_start"] > reporting_df["r
                                                                                                                    "term_start"].dt.day
                                                                                                        ) + 1
 
+## Adding a safe filter for 12 month refunds that get split into 12 revenue periods when they shouldn't
+reporting_df = reporting_df[(reporting_df['term_end'].dt.to_period('M') >= reporting_df['revenue_month_date'].dt.to_period('M'))]
+
 ## Reseting index
 reporting_df.reset_index(drop=True, inplace=True)
-
-## Set active_sub_month_end = 1 by default
-# reporting_df["active_sub_month_end"] = 1
 
 ## Get last indices of each transaction_id group
 last_idxs = (
@@ -268,14 +268,14 @@ reporting_df['subscription_status'] = ['trial' if v == 'free_trial' else 'full d
 
 reporting_df['type_of_transaction'] = ['charge' if v == 'renewal' else 'charge' if v == 'new_sale' else 'charge' if v == 'full_discount' else 'charge' if v == 'free_trial' else 'refund' for v in reporting_df['type_of_transaction']]
 
+## TRYING WITH GOOGLE'S LOGIC
 ## Set active_sub_month_end = 0 by default
 reporting_df['active_sub_month_end'] = 0
+# reporting_df['revenue_month_date'] = pd.to_datetime(reporting_df['revenue_month_date']).dt.date
 reporting_df['active_sub_month_end'][
     (reporting_df['term_end'] > (reporting_df['revenue_month_date'] + pd.offsets.MonthBegin(1)))] = 1
-reporting_df["active_sub_month_end"][reporting_df["subscription_status"] != "paid"] = 0
 
-## Mark all refund transactions as 'active_sub_month_end'] * -1
-reporting_df["active_sub_month_end"][reporting_df["type_of_transaction"] == "refund"] = reporting_df[
+reporting_df["active_sub_month_end"][reporting_df["type_of_transaction"].str.lower() != "charge"] = reporting_df[
                                                                                             'active_sub_month_end'] * -1
 
 reporting_df.reset_index(drop=True, inplace=True)
@@ -286,21 +286,34 @@ reporting_df["active_sub_content"] = reporting_df.active_sub_month_end
 reporting_df["active_sub_content"][(reporting_df["revenue_month_number"] > reporting_df['product_length_months'])] = 0
 
 ## Total_days of product_term_length per transaction_id
-reporting_df["total_days"] = reporting_df.groupby(["transaction_id", 'type_of_transaction'])[
+reporting_df["total_days"] = reporting_df[reporting_df['type_of_transaction'].str.lower().isin(['charge', 'charge refund'])].groupby(["transaction_id", 'type_of_transaction'])[
     "product_term_length"].transform("sum")
+
+## Finance requested to include payout and charge calculations in datatrans too
+reporting_df['payout_eur'] = reporting_df['total_booking_net_eur'] + reporting_df['vat_eur']
+reporting_df['payout_chf'] = reporting_df['total_booking_net_chf'] + reporting_df['vat_chf']
+
+reporting_df['charge_eur'] = reporting_df['sales_price_eur'] - reporting_df['vat_eur']
+reporting_df['charge_chf'] = reporting_df['sales_price_chf'] - reporting_df['vat_chf']
 
 ## Standardizing the report so it's in line with Amazon, Google and Apple
 reporting_df['domestic_abroad'] = np.nan
 
-reporting_df[['charge_chf', 'charge_eur', 'store_fees_percentage', 'payout_chf', 'fee_eur', 'fee_chf',
-              'payout_eur']] = 0
+reporting_df[['store_fees_percentage', 'fee_eur', 'fee_chf']] = 0
 
 ## Final clean up
 reporting_df['revenue_month_date'] = pd.to_datetime(reporting_df['revenue_month_date'])
 reporting_df['buyer_country_code'] = reporting_df['country_code']
+reporting_df['country_code'] = pd.np.where(
+    reporting_df['country_name'] == 'Germany', 'DE', pd.np.where(reporting_df[
+                                                                        'country_name'] == "Austria", "AT", "CH"))
 
 reporting_df['product_group_finance'] = reporting_df['product_group_finance'].replace(
     {'base_hiq': 'premium', 'base_ultimate': 'ultimate'})
+reporting_df['product_class'] = reporting_df['product_group_finance']
+
+## Finance prefers this columns to be empty
+reporting_df['product_group_finance'] = ''
 
 reporting_df['reporting_month'] = reporting_df['reporting_month'].replace(
     {np.nan: reporting_month})
@@ -316,10 +329,18 @@ reporting_df['product_length_months'] = pd.np.where(reporting_df['product_length
                                                                                                                     pd.np.where(reporting_df['product_length'] == 366, 12,
                                                                                                                          1)))))))))
 
-reporting_df["active_sub_content"][reporting_df["subscription_status"] == "trial"] = 0
-reporting_df["active_sub_content"][reporting_df["type_of_transaction"] == "full discount"] = 0
+## WILL THIS WORK? IF NOT REMOVE
+reporting_df["active_sub_content"][(reporting_df["revenue_month_number"] > reporting_df['product_length_months'])] = 0
+##
+reporting_df["active_sub_content"][reporting_df["subscription_status"] == "trial"] = 1
+reporting_df["active_sub_content"][reporting_df["subscription_status"] == "full discount"] = 1
 
-reporting_df.replace(np.nan, 0, inplace=True)
+reporting_df['units'][reporting_df['subscription_status'] == 'trial'] = 1
+reporting_df['units'][reporting_df['subscription_status'] == 'full discount'] = 1
+
+reporting_df["revenue_month_number"].replace(np.nan, 0, inplace=True)
+
+reporting_df['active_sub_content'][reporting_df['product_length_months'] == 0] = reporting_df['active_sub_month_end']
 
 ## Reorder dataframe
 reporting_df = reporting_df[

@@ -44,7 +44,7 @@ reporting_df.rename({'Transaction ID': 'transaction_id',
                      'Country/Region Code': 'country_code',
                      'Vendor SKU': 'vendor_sku',
                      'In-App Subscription Term': 'subscription_term',
-                     # 'In-App Subscription Status': 'subscription_status',
+                     'In-App Subscription Status': 'subscription_status',
                      'Sales Price (Marketplace Currency)': 'sales_price',
                      'Estimated Earnings (Marketplace Currency)': 'earnings',
                      'Units': 'units',
@@ -70,7 +70,7 @@ reporting_df['country_code'] = reporting_df['country_name'].replace(
 
 reporting_df['country_code'] = pd.np.where(
     reporting_df['country_name'] == 'Germany', 'DE', pd.np.where(reporting_df[
-                                                                        'country_name'] == "Switzerland", "CH", "AT"))
+                                                                     'country_name'] == "Switzerland", "CH", "AT"))
 
 ## Converting date columns to datetime
 reporting_df['transaction_date'] = pd.to_datetime(reporting_df['transaction_time'].str[:-4], format='%Y-%m-%d %H:%M:%S')
@@ -106,7 +106,8 @@ df_skus = pandas_gbq.read_gbq(payment_amazon, project_id=project_id, progress_ba
 
 ## Merging df_skus to reporting_df to get enriched data
 reporting_df = reporting_df[
-    ['transaction_id', 'country_name', 'country_code', 'buyer_country_code', 'vendor_sku', 'subscription_status', 'type_of_transaction',
+    ['transaction_id', 'country_name', 'country_code', 'buyer_country_code', 'vendor_sku', 'subscription_status',
+     'type_of_transaction',
      'sales_price',
      'earnings', 'units',
      'transaction_date',
@@ -302,12 +303,14 @@ reporting_df['product_length'] = pd.np.where(
 
 ## There are many of products being sold though they shouldn't and no one knows why. The following is an example.
 reporting_df['product_class'] = pd.np.where(
-    reporting_df['vendor_sku'] == 'zattoo_amazon_firetv_mobile_hiq_german_3mo_period', "premium", reporting_df['product_class'])
+    reporting_df['vendor_sku'] == 'zattoo_amazon_firetv_mobile_hiq_german_3mo_period', "premium",
+    reporting_df['product_class'])
 
 ## Product lengths months also need to be manually treated as there's not enough detailed data in the reports. Especially for cases such as the previous.
 reporting_df['product_length_months'] = pd.np.where(
     reporting_df['product_length'] == 31.0, 1, pd.np.where(reporting_df['product_length'] == 90.0, 3,
-                                                                    pd.np.where(reporting_df['product_length'] == 365.0, 12, reporting_df['product_length_months'])))
+                                                           pd.np.where(reporting_df['product_length'] == 365.0, 12,
+                                                                       reporting_df['product_length_months'])))
 
 ## Adding artificially created term_end_date based on initial transaction_date
 reporting_df['term_end'] = reporting_df['transaction_date'] + reporting_df['product_length'].astype('timedelta64[D]')
@@ -336,7 +339,8 @@ reporting_df['revenue_month_number'] = reporting_df.groupby(["transaction_id", '
     'revenue_month_number'].cumsum()
 
 ## Adding max_month_date to tackle the specifications of active_sub_month_end
-reporting_df['max_month_date'] = reporting_df.groupby([reporting_df['term_end'].dt.to_period('M'), 'type_of_transaction'])[
+reporting_df['max_month_date'] = \
+reporting_df.groupby([reporting_df['term_end'].dt.to_period('M'), 'type_of_transaction'])[
     'term_end'].transform('max')
 reporting_df['max_month_date'] = reporting_df['max_month_date'].dt.normalize() + pd.Timedelta('23:59:59')
 
